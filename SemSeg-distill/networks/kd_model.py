@@ -4,7 +4,6 @@ import torch
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import torch.backends.cudnn as cudnn
-from libs import InPlaceABN, InPlaceABNSync
 from networks.pspnet import Res_pspnet, BasicBlock, Bottleneck
 from networks.sagan_models import Discriminator
 from utils.criterion import CriterionDSN,CriterionCWD, CriterionKD, CriterionAdv, CriterionAdvForG, CriterionAdditionalGP, CriterionIFV
@@ -111,10 +110,10 @@ class NetModel():
             self.criterion_cwd = CriterionCWD(args.norm_type,args.divergence,args.temperature).cuda()
             if args.cwd_feat:
                 self.linear = torch.nn.Sequential(
-        	      torch.nn.Conv2d(128, 512, kernel_size=1, stride=1, padding=0, dilation=1, bias=False),
-                InPlaceABNSync(512),
-                torch.nn.ReLU(inplace=False)
-          			).cuda()
+                    torch.nn.Conv2d(128, 512, kernel_size=1, stride=1, padding=0, dilation=1, bias=False),
+                    torch.nn.BatchNorm2d(512),
+                    torch.nn.ReLU(inplace=False)
+          		).cuda()
                 # self.linear = torch.nn.Conv2d(128,512, kernel_size=1, stride=1, padding=0, dilation=1, bias=True).cuda()
                 # self.linear = torch.nn.Conv2d(128,512, kernel_size=3, stride=1, padding=1, dilation=1, bias=False).cuda()
                 self.G_solver.add_param_group({'params':self.linear.parameters(), 'initial_lr': args.lr_g})

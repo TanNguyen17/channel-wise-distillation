@@ -75,13 +75,16 @@ def predict_sliding(net, image, tile_size, classes, flip_evaluation, recurrence)
             padded_img = pad_image(img, tile_size)
             tile_counter += 1
             print("Predicting tile %i" % tile_counter)
-            padded_prediction = net(Variable(torch.from_numpy(padded_img), volatile=True).cuda())
-            if isinstance(padded_prediction, list):
-                padded_prediction = padded_prediction[0]
-            padded_prediction = interp(padded_prediction).cpu().data[0].numpy().transpose(1,2,0)
-            prediction = padded_prediction[0:img.shape[2], 0:img.shape[3], :]
-            count_predictions[y1:y2, x1:x2] += 1
-            full_probs[y1:y2, x1:x2] += prediction  # accumulate the predictions also in the overlapping regions
+
+            with torch.no_grad():
+                padded_prediction = net(torch.from_numpy(padded_img).cuda())
+                if isinstance(padded_prediction, list):
+                    padded_prediction = padded_prediction[0]
+                padded_prediction = interp(padded_prediction).cpu().data[0].numpy().transpose(1,2,0)
+
+                prediction = padded_prediction[0:img.shape[2], 0:img.shape[3], :]
+                count_predictions[y1:y2, x1:x2] += 1
+                full_probs[y1:y2, x1:x2] += prediction  # accumulate the predictions also in the overlapping regions
 
     full_probs /= count_predictions
     return full_probs
