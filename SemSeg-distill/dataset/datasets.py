@@ -4,6 +4,7 @@ import os.path as osp
 import numpy as np
 import random
 import cv2
+from datasets import load_dataset
 
 class CSTrainValSet(data.Dataset):
     def __init__(self, root, list_path, max_iters=None, crop_size=(321, 321), scale=True, mirror=True, ignore_label=255):
@@ -13,31 +14,19 @@ class CSTrainValSet(data.Dataset):
         self.is_scale = scale
         self.is_mirror = mirror
         self.ignore_label = ignore_label
-        self.img_ids = [i_id.strip().split() for i_id in open(list_path)]
-        if max_iters:
-            self.img_ids = self.img_ids * int(np.ceil(float(max_iters) / len(self.img_ids)))
-            self.img_ids = self.img_ids[:max_iters]
-        self.files = []
-        for item in self.img_ids:
-            image_path, label_path = item
-            name = osp.splitext(osp.basename(label_path))[0]
-            img_file = osp.join(self.root, image_path)
-            label_file = osp.join(self.root, label_path)
-            self.files.append({
-                "img": img_file,
-                "label": label_file,
-                "name": name
-            })
+        split = "validation" if "val" in osp.basename(list_path).lower() else "train"
+        self.hf_ds = load_dataset("Chris1/cityscapes", split=split)
+        self.num_samples = max_iters if max_iters else len(self.hf_ds)
         self.id_to_trainid = {-1: ignore_label, 0: ignore_label, 1: ignore_label, 2: ignore_label,
                               3: ignore_label, 4: ignore_label, 5: ignore_label, 6: ignore_label,
                               7: 0, 8: 1, 9: ignore_label, 10: ignore_label, 11: 2, 12: 3, 13: 4,
                               14: ignore_label, 15: ignore_label, 16: ignore_label, 17: 5,
                               18: ignore_label, 19: 6, 20: 7, 21: 8, 22: 9, 23: 10, 24: 11, 25: 12, 26: 13, 27: 14,
                               28: 15, 29: ignore_label, 30: ignore_label, 31: 16, 32: 17, 33: 18}
-        print('{} images are loaded!'.format(len(self.img_ids)))
+        print('{} images are loaded!'.format(self.num_samples))
 
     def __len__(self):
-        return len(self.files)
+        return self.num_samples
 
     def generate_scale_label(self, image, label):
         f_scale = 0.7 + random.randint(0, 14) / 10.0
@@ -56,12 +45,12 @@ class CSTrainValSet(data.Dataset):
         return label_copy
 
     def __getitem__(self, index):
-        datafiles = self.files[index]
-        image = cv2.imread(datafiles["img"], cv2.IMREAD_COLOR)
-        label = cv2.imread(datafiles["label"], cv2.IMREAD_GRAYSCALE)
+        item = self.hf_ds[index % len(self.hf_ds)]
+        image = cv2.cvtColor(np.array(item["image"]), cv2.COLOR_RGB2BGR)
+        label = np.array(item["semantic_segmentation"])[:, :, 0]
         label = self.id2trainId(label)
         size = image.shape
-        name = datafiles["name"]
+        name = f"{index:05d}"
         if self.is_scale:
             image, label = self.generate_scale_label(image, label)
         image = np.asarray(image, np.float32)
