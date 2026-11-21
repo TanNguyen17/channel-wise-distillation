@@ -187,7 +187,7 @@ def evaluate_main(model, loader, input_size, num_classes, whole = False, recurre
         output_im.save('outputs/'+name[0]+'.png')
 
         if type == 'val':
-            seg_gt = np.asarray(label[0].numpy()[:size[0],:size[1]], dtype=np.int)
+            seg_gt = np.asarray(label[0].numpy()[:size[0],:size[1]], dtype=int)
             ignore_index = seg_gt != 255
             seg_gt = seg_gt[ignore_index]
             seg_pred = seg_pred[ignore_index]
